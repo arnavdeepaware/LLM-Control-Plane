@@ -1,4 +1,4 @@
-# LLM Gateway
+# LLM Control Plane
 
 A production-style API gateway for managing LLM traffic across multiple providers with team authentication, rate limiting, budget controls, fallback routing, circuit breakers, and observability.
 
