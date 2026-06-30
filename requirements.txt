@@ -8,3 +8,7 @@ pyyaml
 pytest
 pytest-asyncio
 prometheus-client
+
+# test-only: in-memory Redis so rate-limit/budget tests don't need a live server.
+# [lua] extra is required for EVAL support (our token-bucket limiter uses a Lua script).
+fakeredis[lua]

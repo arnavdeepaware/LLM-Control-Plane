@@ -16,7 +16,13 @@ class BudgetConfig(BaseModel):
     monthly_usd: float = 50.0
 
 
+class PricingConfig(BaseModel):
+    input_price_per_1k: float
+    output_price_per_1k: float
+
+
 class TeamConfig(BaseModel):
+    team_id: str = ""
     name: str
     api_key: str
     allowed_models: list[str]
@@ -27,3 +33,4 @@ class TeamConfig(BaseModel):
 
 class GatewayConfig(BaseModel):
     teams: dict[str, TeamConfig]
+    pricing: dict[str, PricingConfig] = {}
