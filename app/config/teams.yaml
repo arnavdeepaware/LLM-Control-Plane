@@ -1,1 +1,36 @@
-# Team configuration - populated in Phase 2
+teams:
+  team_alpha:
+    name: "Team Alpha"
+    api_key: "alpha-secret-key"
+    allowed_models:
+      - smart-chat
+      - cheap-chat
+    model_routes:
+      smart-chat:
+        provider: mock
+        model: mock-smart-chat
+      cheap-chat:
+        provider: mock
+        model: mock-cheap-chat
+    rate_limits:
+      requests_per_minute: 60
+      tokens_per_minute: 50000
+    budgets:
+      daily_usd: 5.00
+      monthly_usd: 50.00
+
+  team_beta:
+    name: "Team Beta"
+    api_key: "beta-secret-key"
+    allowed_models:
+      - cheap-chat
+    model_routes:
+      cheap-chat:
+        provider: mock
+        model: mock-cheap-chat
+    rate_limits:
+      requests_per_minute: 20
+      tokens_per_minute: 10000
+    budgets:
+      daily_usd: 1.00
+      monthly_usd: 20.00
