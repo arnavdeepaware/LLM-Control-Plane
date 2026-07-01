@@ -3,7 +3,7 @@ from pathlib import Path
 
 import yaml
 
-from app.models.team import GatewayConfig, PricingConfig, TeamConfig
+from app.models.team import CircuitBreakerConfig, GatewayConfig, PricingConfig, TeamConfig
 
 _config: GatewayConfig | None = None
 
@@ -56,6 +56,10 @@ def get_pricing(model_alias: str) -> PricingConfig:
     if pricing is None:
         raise KeyError(f"No pricing configured for model '{model_alias}'")
     return pricing
+
+
+def get_circuit_breaker_config() -> CircuitBreakerConfig:
+    return get_config().circuit_breaker
 
 
 def get_redis_url() -> str:

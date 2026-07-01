@@ -6,6 +6,11 @@ pricing:
     input_price_per_1k: 0.001
     output_price_per_1k: 0.002
 
+circuit_breaker:
+  failure_threshold: 5
+  window_seconds: 30
+  cooldown_seconds: 60
+
 teams:
   team_alpha:
     name: "Team Alpha"
@@ -17,9 +22,15 @@ teams:
       smart-chat:
         provider: mock
         model: mock-smart-chat
+        fallbacks:
+          - provider: mock
+            model: mock-backup-chat
       cheap-chat:
         provider: mock
         model: mock-cheap-chat
+        fallbacks:
+          - provider: mock
+            model: mock-backup-cheap
     rate_limits:
       requests_per_minute: 60
       tokens_per_minute: 50000
@@ -36,6 +47,9 @@ teams:
       cheap-chat:
         provider: mock
         model: mock-cheap-chat
+        fallbacks:
+          - provider: mock
+            model: mock-backup-cheap
     rate_limits:
       requests_per_minute: 20
       tokens_per_minute: 10000

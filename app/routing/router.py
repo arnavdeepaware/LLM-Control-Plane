@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from fastapi import HTTPException
 
-from app.models.team import TeamConfig
+from app.models.team import ModelRoute, TeamConfig
 from app.providers.base import BaseProvider
 from app.providers.mock_provider import MockProvider
 
@@ -26,8 +26,18 @@ class ProviderTarget:
         return cls(provider_name=parts[0], model_name=parts[1])
 
 
-def resolve_route(team: TeamConfig, model_alias: str) -> tuple[BaseProvider, str]:
-    """Return (provider_instance, resolved_model_name) for the given alias."""
+def get_provider(provider_name: str) -> BaseProvider:
+    provider = _provider_registry.get(provider_name)
+    if provider is None:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Provider '{provider_name}' is not registered",
+        )
+    return provider
+
+
+def resolve_model_route(team: TeamConfig, model_alias: str) -> ModelRoute:
+    """Return the full configured route (primary + fallback chain) for the given alias."""
     if model_alias not in team.allowed_models:
         raise HTTPException(
             status_code=403,
@@ -41,11 +51,10 @@ def resolve_route(team: TeamConfig, model_alias: str) -> tuple[BaseProvider, str
             detail=f"No route configured for model '{model_alias}'",
         )
 
-    provider = _provider_registry.get(route.provider)
-    if provider is None:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Provider '{route.provider}' is not registered",
-        )
+    return route
 
-    return provider, route.model
+
+def resolve_route(team: TeamConfig, model_alias: str) -> tuple[BaseProvider, str]:
+    """Return (provider_instance, resolved_model_name) for the given alias's primary target."""
+    route = resolve_model_route(team, model_alias)
+    return get_provider(route.provider), route.model
