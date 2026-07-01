@@ -3,8 +3,11 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from app.config.loader import get_circuit_breaker_config
+from app.observability.metrics import CIRCUIT_BREAKER_STATE
 
 CircuitStateName = Literal["closed", "open", "half_open"]
+
+_STATE_VALUES: dict[CircuitStateName, float] = {"closed": 0, "open": 1, "half_open": 2}
 
 
 @dataclass
@@ -40,6 +43,7 @@ def is_available(provider: str, model: str) -> bool:
         cooldown = get_circuit_breaker_config().cooldown_seconds
         if circuit.opened_at is not None and time.time() - circuit.opened_at >= cooldown:
             circuit.state = "half_open"
+            CIRCUIT_BREAKER_STATE.labels(provider=provider, model=model).set(_STATE_VALUES[circuit.state])
         else:
             return False
 
@@ -52,6 +56,7 @@ def record_success(provider: str, model: str) -> None:
     circuit.state = "closed"
     circuit.failures = []
     circuit.opened_at = None
+    CIRCUIT_BREAKER_STATE.labels(provider=provider, model=model).set(_STATE_VALUES[circuit.state])
 
 
 def record_failure(provider: str, model: str) -> None:
@@ -63,6 +68,7 @@ def record_failure(provider: str, model: str) -> None:
         circuit.state = "open"
         circuit.opened_at = now
         circuit.failures = [now]
+        CIRCUIT_BREAKER_STATE.labels(provider=provider, model=model).set(_STATE_VALUES[circuit.state])
         return
 
     circuit.failures = [t for t in circuit.failures if now - t <= config.window_seconds]
@@ -71,6 +77,7 @@ def record_failure(provider: str, model: str) -> None:
     if len(circuit.failures) >= config.failure_threshold:
         circuit.state = "open"
         circuit.opened_at = now
+        CIRCUIT_BREAKER_STATE.labels(provider=provider, model=model).set(_STATE_VALUES[circuit.state])
 
 
 def get_state(provider: str, model: str) -> CircuitState:

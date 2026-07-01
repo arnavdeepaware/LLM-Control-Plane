@@ -4,6 +4,7 @@ from fastapi import HTTPException
 
 from app.models.chat import ChatCompletionRequest, ChatCompletionResponse
 from app.models.team import TeamConfig
+from app.observability.metrics import FALLBACK_COUNT, PROVIDER_ERRORS, RETRY_COUNT
 from app.providers.errors import NonRetryableProviderError, ProviderError, RetryableProviderError
 from app.routing import circuit_breaker
 from app.routing.retry import DEFAULT_BASE_DELAY_SECONDS, DEFAULT_MAX_RETRIES, retry_provider_call
@@ -45,20 +46,35 @@ async def resilient_chat_completion(
         try:
             if target.is_primary:
                 response = await retry_provider_call(
-                    provider, request, target.model_name, max_retries=max_retries, base_delay=base_delay
+                    provider,
+                    request,
+                    target.model_name,
+                    max_retries=max_retries,
+                    base_delay=base_delay,
+                    on_retry=lambda: RETRY_COUNT.labels(
+                        provider=target.provider_name, model_requested=model_alias
+                    ).inc(),
                 )
             else:
                 response = await provider.chat_completion(request, target.model_name)
-        except NonRetryableProviderError:
+        except NonRetryableProviderError as exc:
             circuit_breaker.record_failure(target.provider_name, target.model_name)
+            PROVIDER_ERRORS.labels(
+                provider=target.provider_name, model_requested=model_alias, error_type=type(exc).__name__
+            ).inc()
             raise
         except RetryableProviderError as exc:
             circuit_breaker.record_failure(target.provider_name, target.model_name)
+            PROVIDER_ERRORS.labels(
+                provider=target.provider_name, model_requested=model_alias, error_type=type(exc).__name__
+            ).inc()
             last_error = exc
             continue
 
         circuit_breaker.record_success(target.provider_name, target.model_name)
         response.fallback_used = not target.is_primary
+        if response.fallback_used:
+            FALLBACK_COUNT.labels(team_id=team.team_id, model_requested=model_alias).inc()
         return response
 
     message = f"All providers failed for model '{model_alias}'"

@@ -1,0 +1,86 @@
+{
+  "title": "LLM Gateway",
+  "uid": "llm-gateway",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "sum(rate(llm_gateway_requests_total[1m])) by (status_code)", "legendFormat": "{{status_code}}" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Latency (p50 / p95 / p99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(llm_gateway_request_latency_seconds_bucket[5m])) by (le))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, sum(rate(llm_gateway_request_latency_seconds_bucket[5m])) by (le))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, sum(rate(llm_gateway_request_latency_seconds_bucket[5m])) by (le))", "legendFormat": "p99" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Provider Errors",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        { "expr": "sum(rate(llm_gateway_provider_errors_total[1m])) by (error_type)", "legendFormat": "{{error_type}}" }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Fallbacks & Retries",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        { "expr": "sum(rate(llm_gateway_fallbacks_total[1m]))", "legendFormat": "fallbacks" },
+        { "expr": "sum(rate(llm_gateway_retries_total[1m]))", "legendFormat": "retries" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Rate-Limited & Budget-Blocked",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        { "expr": "sum(rate(llm_gateway_rate_limited_total[1m])) by (team_id)", "legendFormat": "rate_limited:{{team_id}}" },
+        { "expr": "sum(rate(llm_gateway_budget_blocked_total[1m])) by (team_id)", "legendFormat": "budget_blocked:{{team_id}}" }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Token Usage",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        { "expr": "sum(rate(llm_gateway_tokens_total[1m])) by (token_type)", "legendFormat": "{{token_type}}" }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Estimated Cost (USD/min)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "targets": [
+        { "expr": "sum(rate(llm_gateway_cost_usd_total[1m])) by (team_id)", "legendFormat": "{{team_id}}" }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Circuit Breaker State",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "targets": [
+        { "expr": "llm_gateway_circuit_state", "legendFormat": "{{provider}}/{{model}}" }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import asyncio
 import random
+from typing import Callable
 
 from app.models.chat import ChatCompletionRequest, ChatCompletionResponse
 from app.providers.base import BaseProvider
@@ -23,6 +24,7 @@ async def retry_provider_call(
     model: str,
     max_retries: int = DEFAULT_MAX_RETRIES,
     base_delay: float = DEFAULT_BASE_DELAY_SECONDS,
+    on_retry: Callable[[], None] | None = None,
 ) -> ChatCompletionResponse:
     """Call provider.chat_completion, retrying RetryableProviderError with exponential backoff + jitter.
 
@@ -37,6 +39,8 @@ async def retry_provider_call(
         except RetryableProviderError as exc:
             last_error = exc
             if attempt < max_retries:
+                if on_retry is not None:
+                    on_retry()
                 await asyncio.sleep(_compute_delay(attempt, base_delay))
 
     assert last_error is not None
