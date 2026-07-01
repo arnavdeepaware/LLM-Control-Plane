@@ -1,10 +1,12 @@
 from fastapi import APIRouter, HTTPException
 
 from app.budget.manager import get_spend
-from app.config.loader import get_team_by_id
+from app.config.loader import get_config, get_team_by_id
 from app.rate_limit.limiter import get_tokens_this_minute
+from app.routing import circuit_breaker
 
 router = APIRouter(prefix="/admin")
+providers_router = APIRouter()
 
 
 @router.get("/teams/{team_id}/usage")
@@ -51,3 +53,37 @@ async def get_team_limits(team_id: str):
             "monthly_usd": team.budgets.monthly_usd,
         },
     }
+
+
+def _configured_provider_targets() -> list[tuple[str, str]]:
+    """Every (provider, model) pair reachable via any team's primary or fallback routes."""
+    seen: set[tuple[str, str]] = set()
+    targets: list[tuple[str, str]] = []
+    for team in get_config().teams.values():
+        for route in team.model_routes.values():
+            for provider_name, model_name in [(route.provider, route.model)] + [
+                (fb.provider, fb.model) for fb in route.fallbacks
+            ]:
+                key = (provider_name, model_name)
+                if key not in seen:
+                    seen.add(key)
+                    targets.append(key)
+    return targets
+
+
+@providers_router.get("/providers/health")
+async def get_providers_health():
+    providers = []
+    for provider_name, model_name in _configured_provider_targets():
+        state = circuit_breaker.get_state(provider_name, model_name)
+        providers.append(
+            {
+                "provider": provider_name,
+                "model": model_name,
+                "circuit_state": state.state,
+                "recent_failures": len(state.failures),
+                "last_failure_at": state.failures[-1] if state.failures else None,
+            }
+        )
+
+    return {"providers": providers}

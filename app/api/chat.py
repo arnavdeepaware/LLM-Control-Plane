@@ -5,7 +5,8 @@ from app.budget.manager import check_budget, estimate_cost, record_spend
 from app.models.chat import ChatCompletionRequest, ChatCompletionResponse
 from app.models.team import TeamConfig
 from app.rate_limit.limiter import check_rate_limit, record_tokens
-from app.routing.router import resolve_route
+from app.routing.fallback import resilient_chat_completion
+from app.routing.router import resolve_model_route
 
 router = APIRouter()
 
@@ -15,7 +16,7 @@ async def chat_completion(
     request: ChatCompletionRequest,
     team: TeamConfig = Depends(get_current_team),
 ) -> ChatCompletionResponse:
-    provider, model = resolve_route(team, request.model)
+    resolve_model_route(team, request.model)  # fail fast on disallowed/unknown model before touching Redis
 
     rate_limit_result = await check_rate_limit(team)
     if not rate_limit_result.allowed:
@@ -45,7 +46,7 @@ async def chat_completion(
             },
         )
 
-    response = await provider.chat_completion(request, model)
+    response = await resilient_chat_completion(request, team, request.model)
 
     cost = estimate_cost(response.usage, request.model)
     await record_spend(team, cost)

@@ -1,9 +1,15 @@
 from pydantic import BaseModel
 
 
+class FallbackTarget(BaseModel):
+    provider: str
+    model: str
+
+
 class ModelRoute(BaseModel):
     provider: str
     model: str
+    fallbacks: list[FallbackTarget] = []
 
 
 class RateLimitConfig(BaseModel):
@@ -21,6 +27,12 @@ class PricingConfig(BaseModel):
     output_price_per_1k: float
 
 
+class CircuitBreakerConfig(BaseModel):
+    failure_threshold: int = 5
+    window_seconds: int = 60
+    cooldown_seconds: int = 30
+
+
 class TeamConfig(BaseModel):
     team_id: str = ""
     name: str
@@ -34,3 +46,4 @@ class TeamConfig(BaseModel):
 class GatewayConfig(BaseModel):
     teams: dict[str, TeamConfig]
     pricing: dict[str, PricingConfig] = {}
+    circuit_breaker: CircuitBreakerConfig = CircuitBreakerConfig()
