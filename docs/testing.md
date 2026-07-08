@@ -1,54 +1,91 @@
 # Testing Guide
 
-This project is designed to run locally without real LLM provider keys. Automated tests use MockProvider and fakeredis.
+The test suite is designed to prove gateway behavior without real LLM provider keys. Automated tests use `MockProvider` for deterministic provider responses and `fakeredis` for Redis-backed rate limits and budgets.
 
-## Setup
-
-```bash
-pip install -r requirements.txt
-```
-
-## Automated Tests
-
-Run the full suite:
+## Quick Commands
 
 ```bash
+pytest
 pytest -q
+pytest tests/test_integration_gateway.py -q
+pytest tests/test_providers.py -q
+pytest tests/test_metrics.py -q
 ```
 
-Run the integration gateway tests:
+If `pytest` is not on your shell path but you created the local virtual environment:
 
 ```bash
+./.venv/bin/pytest -q
+```
+
+## What The Tests Cover
+
+| Area | Coverage |
+| --- | --- |
+| Health | `/` and `/health` responses |
+| Chat API | successful normalized chat response shape |
+| Auth | missing, malformed, and invalid Bearer tokens |
+| Authorization | per-team model access controls |
+| Config | provider target, pricing, and route validation |
+| Provider abstraction | target parsing, registry lookup, mock provider behavior |
+| Rate limiting | Redis-backed request limit and `Retry-After` responses |
+| Budgets | daily/monthly blocking and spend tracking |
+| Retry | retryable provider errors, max retry bounds, non-retryable handling |
+| Fallback | primary failure, fallback success, all-provider failure |
+| Circuit breaker | closed/open/half-open transitions and independent target state |
+| Observability | request IDs, metrics, counters, histograms, gauges |
+| Integration | end-to-end gateway behavior through FastAPI `TestClient` |
+
+## Full Suite
+
+```bash
+pytest
+```
+
+Expected result:
+
+```text
+93 passed
+```
+
+The exact warning count may vary by dependency version.
+
+## Focused Regression Runs
+
+```bash
+pytest tests/test_chat_mvp.py -q
+pytest tests/test_rate_limit.py -q
+pytest tests/test_budget.py -q
+pytest tests/test_retry.py -q
+pytest tests/test_fallback.py -q
+pytest tests/test_circuit_breaker.py -q
+pytest tests/test_providers.py -q
+pytest tests/test_metrics.py -q
 pytest tests/test_integration_gateway.py -q
 ```
 
-Useful focused regression commands:
+## Docker Compose Validation
+
+Modern Compose:
 
 ```bash
-pytest tests/test_fallback.py -q
-pytest tests/test_circuit_breaker.py -q
-pytest tests/test_metrics.py -q
-pytest tests/test_providers.py -q
+docker compose config
 ```
 
-## Local Smoke Test
+Legacy Compose:
 
-The smoke test exercises the chat path, so Redis must be available. The simplest local path is Docker Compose:
+```bash
+docker-compose config
+```
+
+This validates service wiring for the gateway, Redis, Prometheus, and Grafana.
+
+## Smoke Test
+
+Start the stack:
 
 ```bash
 docker compose up --build
-```
-
-Or, with legacy Compose:
-
-```bash
-docker-compose up --build
-```
-
-If running the gateway directly, start Redis separately and then run:
-
-```bash
-uvicorn app.main:app --reload
 ```
 
 Run smoke checks:
@@ -57,7 +94,7 @@ Run smoke checks:
 python scripts/smoke_test.py --base-url http://localhost:8000
 ```
 
-Expected successful output shape:
+Expected output:
 
 ```text
 PASS health 200
@@ -69,32 +106,33 @@ PASS disallowed_model 403
 Smoke test passed: 6/6 checks
 ```
 
-## Docker Compose Verification
-
-Modern Compose:
+## Load Test
 
 ```bash
-docker compose config
-docker compose up --build
-python scripts/smoke_test.py --base-url http://localhost:8000
 python scripts/load_test.py --requests 200 --concurrency 20
-docker compose down
 ```
 
-Legacy Compose:
+Expected output shape:
 
-```bash
-docker-compose config
-docker-compose up --build
-python scripts/smoke_test.py --base-url http://localhost:8000
-python scripts/load_test.py --requests 200 --concurrency 20
-docker-compose down
+```text
+Load test complete
+Total requests: 200
+Successes: <number>
+Rate limited: <number>
+Errors: 0
+Average latency ms: <number>
+P95 latency ms: <number>
+Requests/sec: <number>
+Result: PASS
 ```
 
-## Notes
+The default `team_alpha` request limit is `60` requests per minute, so rate-limited responses are expected in larger local load runs.
 
-- No automated test calls real OpenAI, Anthropic, or Ollama APIs.
-- Smoke and load scripts target a running local gateway; they do not start services for you.
-- Chat smoke/load checks require Redis because rate limiting and budget checks run before provider calls.
-- The load script may report expected `429` responses because local team rate limits are intentionally low.
-- Prometheus is available at `http://localhost:9090` and Grafana at `http://localhost:3000` when the Compose stack is running.
+## Testing Principles
+
+- No automated test calls OpenAI, Anthropic, Ollama, or any paid provider.
+- Tests should not require real API keys.
+- Tests should not weaken existing behavior to pass.
+- Failure-mode tests should use deterministic `MockProvider` queues.
+- Redis behavior should stay isolated through `fakeredis`.
+- Metrics labels should remain low-cardinality.
