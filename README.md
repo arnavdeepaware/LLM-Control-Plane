@@ -371,6 +371,26 @@ Run a specific test file:
 pytest tests/test_rate_limit.py
 ```
 
+Run integration tests:
+
+```bash
+pytest tests/test_integration_gateway.py -q
+```
+
+Run smoke checks against a running gateway:
+
+```bash
+python scripts/smoke_test.py --base-url http://localhost:8000
+```
+
+Run a modest local load test:
+
+```bash
+python scripts/load_test.py --requests 200 --concurrency 20
+```
+
+See `docs/testing.md` and `docs/load-testing.md` for Docker Compose verification, Redis requirements, and load-test guidance.
+
 Recommended test coverage:
 
 - Health check
