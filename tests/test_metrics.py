@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.observability.metrics import REGISTRY
+from app.providers.registry import get_provider_registry
 
 client = TestClient(app)
 
@@ -101,9 +102,7 @@ def test_budget_blocked_request_increments_budget_counter(monkeypatch):
 
 
 def test_fallback_increments_fallback_counter():
-    from app.routing.router import _provider_registry
-
-    mock_provider = _provider_registry["mock"]
+    mock_provider = get_provider_registry().require("mock")
     mock_provider.queue_failure("mock-smart-chat", "server_error", count=3)
 
     before = get_metric_value(
@@ -119,9 +118,7 @@ def test_fallback_increments_fallback_counter():
 
 
 def test_provider_error_increments_error_counter():
-    from app.routing.router import _provider_registry
-
-    mock_provider = _provider_registry["mock"]
+    mock_provider = get_provider_registry().require("mock")
     mock_provider.queue_failure("mock-smart-chat", "auth_error", count=1)
 
     before = get_metric_value(
@@ -169,9 +166,7 @@ def test_retry_increments_retry_counter(monkeypatch):
 
     monkeypatch.setattr(retry_module.asyncio, "sleep", instant_sleep)
 
-    from app.routing.router import _provider_registry
-
-    mock_provider = _provider_registry["mock"]
+    mock_provider = get_provider_registry().require("mock")
     mock_provider.queue_failure("mock-smart-chat", "server_error", count=1)
 
     before = get_metric_value(

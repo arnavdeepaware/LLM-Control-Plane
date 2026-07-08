@@ -61,10 +61,8 @@ def _configured_provider_targets() -> list[tuple[str, str]]:
     targets: list[tuple[str, str]] = []
     for team in get_config().teams.values():
         for route in team.model_routes.values():
-            for provider_name, model_name in [(route.provider, route.model)] + [
-                (fb.provider, fb.model) for fb in route.fallbacks
-            ]:
-                key = (provider_name, model_name)
+            for target in route.all_targets():
+                key = (target.provider, target.model)
                 if key not in seen:
                     seen.add(key)
                     targets.append(key)

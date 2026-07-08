@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.routing import router as router_module
+from app.providers.registry import get_provider_registry
 
 client = TestClient(app)
 
@@ -58,14 +58,14 @@ def test_rate_limited_team_does_not_block_other_team():
 
 
 def test_rate_limited_request_does_not_call_provider(monkeypatch):
-    mock_provider = router_module._provider_registry["mock"]
+    mock_provider = get_provider_registry().require("mock")
     call_count = 0
     original_chat_completion = mock_provider.chat_completion
 
-    async def counting_chat_completion(request, model):
+    async def counting_chat_completion(request, target):
         nonlocal call_count
         call_count += 1
-        return await original_chat_completion(request, model)
+        return await original_chat_completion(request, target)
 
     monkeypatch.setattr(mock_provider, "chat_completion", counting_chat_completion)
 

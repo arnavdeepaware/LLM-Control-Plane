@@ -504,6 +504,10 @@ The project is complete when:
 - CI/CD pipeline
 - More accurate tokenizer-based cost calculation
 
+## Provider Docs
+
+- See `docs/provider-abstraction.md` for the provider contract, registry behavior, and how to add a new provider safely.
+
 ## Project Narrative
 
 I built a production-style LLM API gateway that centralizes access to multiple LLM providers. The gateway authenticates teams, enforces rate limits and budgets, routes requests to the correct provider, automatically falls back during provider failures, and exposes unified metrics for monitoring. The goal is to solve the operational problems companies face when multiple teams use LLMs independently: uncontrolled costs, scattered API keys, poor observability, provider outages, and inconsistent reliability logic.

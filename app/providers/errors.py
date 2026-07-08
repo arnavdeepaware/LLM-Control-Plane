@@ -29,3 +29,11 @@ class NonRetryableProviderError(ProviderError):
 
 class ProviderAuthError(NonRetryableProviderError):
     pass
+
+
+class ProviderConfigurationError(NonRetryableProviderError):
+    pass
+
+
+class ProviderUnavailableError(NonRetryableProviderError):
+    pass

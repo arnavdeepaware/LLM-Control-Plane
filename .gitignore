@@ -10,3 +10,4 @@ build/
 *.egg
 .mypy_cache/
 CLAUDE.md
+AGENTS.md

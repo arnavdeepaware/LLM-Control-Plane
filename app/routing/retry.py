@@ -5,6 +5,7 @@ from typing import Callable
 from app.models.chat import ChatCompletionRequest, ChatCompletionResponse
 from app.providers.base import BaseProvider
 from app.providers.errors import RetryableProviderError
+from app.providers.target import ProviderTarget
 
 DEFAULT_MAX_RETRIES = 2
 # Kept small so the test suite stays fast; still demonstrates real exponential backoff + jitter.
@@ -21,7 +22,7 @@ def _compute_delay(attempt: int, base_delay: float) -> float:
 async def retry_provider_call(
     provider: BaseProvider,
     request: ChatCompletionRequest,
-    model: str,
+    target: ProviderTarget,
     max_retries: int = DEFAULT_MAX_RETRIES,
     base_delay: float = DEFAULT_BASE_DELAY_SECONDS,
     on_retry: Callable[[], None] | None = None,
@@ -35,7 +36,7 @@ async def retry_provider_call(
 
     for attempt in range(max_retries + 1):
         try:
-            return await provider.chat_completion(request, model)
+            return await provider.chat_completion(request, target)
         except RetryableProviderError as exc:
             last_error = exc
             if attempt < max_retries:

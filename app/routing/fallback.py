@@ -5,17 +5,17 @@ from fastapi import HTTPException
 from app.models.chat import ChatCompletionRequest, ChatCompletionResponse
 from app.models.team import TeamConfig
 from app.observability.metrics import FALLBACK_COUNT, PROVIDER_ERRORS, RETRY_COUNT
-from app.providers.errors import NonRetryableProviderError, ProviderError, RetryableProviderError
+from app.providers.errors import (
+    NonRetryableProviderError,
+    ProviderError,
+    ProviderUnavailableError,
+    RetryableProviderError,
+)
+from app.providers.registry import get_provider_registry
+from app.providers.target import ProviderTarget
 from app.routing import circuit_breaker
 from app.routing.retry import DEFAULT_BASE_DELAY_SECONDS, DEFAULT_MAX_RETRIES, retry_provider_call
-from app.routing.router import get_provider, resolve_model_route
-
-
-@dataclass
-class _Target:
-    provider_name: str
-    model_name: str
-    is_primary: bool
+from app.routing.router import resolve_model_route
 
 
 async def resilient_chat_completion(
@@ -31,48 +31,53 @@ async def resilient_chat_completion(
     trying further targets. If every target is unavailable or fails, raises HTTPException(503).
     """
     route = resolve_model_route(team, model_alias)
-    targets = [_Target(route.provider, route.model, is_primary=True)] + [
-        _Target(fb.provider, fb.model, is_primary=False) for fb in route.fallbacks
+    primary_target = route.primary_target()
+    fallback_targets = route.fallback_targets()
+    targets: list[tuple[ProviderTarget, bool]] = [(primary_target, True)] + [
+        (target, False) for target in fallback_targets
     ]
 
     last_error: ProviderError | None = None
+    registry = get_provider_registry()
 
-    for target in targets:
-        if not circuit_breaker.is_available(target.provider_name, target.model_name):
+    for target, is_primary in targets:
+        if not circuit_breaker.is_available(target.provider, target.model):
             continue
 
-        provider = get_provider(target.provider_name)
-
         try:
-            if target.is_primary:
+            provider = registry.require(target.provider)
+            if is_primary:
                 response = await retry_provider_call(
                     provider,
                     request,
-                    target.model_name,
+                    target,
                     max_retries=max_retries,
                     base_delay=base_delay,
                     on_retry=lambda: RETRY_COUNT.labels(
-                        provider=target.provider_name, model_requested=model_alias
+                        provider=target.provider, model_requested=model_alias
                     ).inc(),
                 )
             else:
-                response = await provider.chat_completion(request, target.model_name)
+                response = await provider.chat_completion(request, target)
+        except ProviderUnavailableError as exc:
+            last_error = exc
+            continue
         except NonRetryableProviderError as exc:
-            circuit_breaker.record_failure(target.provider_name, target.model_name)
+            circuit_breaker.record_failure(target.provider, target.model)
             PROVIDER_ERRORS.labels(
-                provider=target.provider_name, model_requested=model_alias, error_type=type(exc).__name__
+                provider=target.provider, model_requested=model_alias, error_type=type(exc).__name__
             ).inc()
             raise
         except RetryableProviderError as exc:
-            circuit_breaker.record_failure(target.provider_name, target.model_name)
+            circuit_breaker.record_failure(target.provider, target.model)
             PROVIDER_ERRORS.labels(
-                provider=target.provider_name, model_requested=model_alias, error_type=type(exc).__name__
+                provider=target.provider, model_requested=model_alias, error_type=type(exc).__name__
             ).inc()
             last_error = exc
             continue
 
-        circuit_breaker.record_success(target.provider_name, target.model_name)
-        response.fallback_used = not target.is_primary
+        circuit_breaker.record_success(target.provider, target.model)
+        response.fallback_used = not is_primary
         if response.fallback_used:
             FALLBACK_COUNT.labels(team_id=team.team_id, model_requested=model_alias).inc()
         return response

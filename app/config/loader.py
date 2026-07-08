@@ -4,8 +4,14 @@ from pathlib import Path
 import yaml
 
 from app.models.team import CircuitBreakerConfig, GatewayConfig, PricingConfig, TeamConfig
+from app.providers.errors import ProviderError
+from app.providers.registry import get_provider_registry
 
 _config: GatewayConfig | None = None
+
+
+class ConfigValidationError(ValueError):
+    pass
 
 
 def load_config(path: Path | None = None) -> GatewayConfig:
@@ -17,8 +23,41 @@ def load_config(path: Path | None = None) -> GatewayConfig:
     config = GatewayConfig(**raw)
     for team_id, team in config.teams.items():
         team.team_id = team_id
+    validate_config(config)
     _config = config
     return _config
+
+
+def validate_config(config: GatewayConfig) -> None:
+    registry = get_provider_registry()
+
+    for team_id, team in config.teams.items():
+        allowed_models = set(team.allowed_models)
+        configured_routes = set(team.model_routes.keys())
+
+        missing_routes = sorted(allowed_models - configured_routes)
+        if missing_routes:
+            raise ConfigValidationError(
+                f"Team '{team_id}' is missing model_routes for allowed model(s): {', '.join(missing_routes)}"
+            )
+
+        extra_routes = sorted(configured_routes - allowed_models)
+        if extra_routes:
+            raise ConfigValidationError(
+                f"Team '{team_id}' has model_routes not present in allowed_models: {', '.join(extra_routes)}"
+            )
+
+        for model_alias, route in team.model_routes.items():
+            if model_alias not in config.pricing:
+                raise ConfigValidationError(f"No pricing configured for model '{model_alias}'")
+
+            for target in route.all_targets():
+                try:
+                    registry.validate_target(target)
+                except (ProviderError, ValueError) as exc:
+                    raise ConfigValidationError(
+                        f"Invalid provider target for team '{team_id}' model '{model_alias}': {exc}"
+                    ) from exc
 
 
 def reset_config() -> None:

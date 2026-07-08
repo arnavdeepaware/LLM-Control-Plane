@@ -4,9 +4,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.providers.registry import get_provider_registry
 from app.routing import circuit_breaker
 from app.routing import retry as retry_module
-from app.routing import router as router_module
 
 client = TestClient(app)
 
@@ -33,13 +33,13 @@ SMART_CHAT_BODY = {
 
 def _track_calls(monkeypatch) -> list[str]:
     """Record every model the shared mock provider is actually called with."""
-    mock_provider = router_module._provider_registry["mock"]
+    mock_provider = get_provider_registry().require("mock")
     calls: list[str] = []
     original = mock_provider.chat_completion
 
-    async def tracking(request, model):
-        calls.append(model)
-        return await original(request, model)
+    async def tracking(request, target):
+        calls.append(target.model)
+        return await original(request, target)
 
     monkeypatch.setattr(mock_provider, "chat_completion", tracking)
     return calls
@@ -55,7 +55,7 @@ def test_primary_success_returns_no_fallback():
 
 
 def test_primary_failure_triggers_fallback():
-    mock_provider = router_module._provider_registry["mock"]
+    mock_provider = get_provider_registry().require("mock")
     mock_provider.queue_failure("mock-smart-chat", "timeout", count=3)  # exhausts all 3 attempts
 
     response = client.post("/v1/chat/completions", json=SMART_CHAT_BODY, headers=ALPHA_HEADERS)
@@ -70,7 +70,7 @@ def test_primary_failure_triggers_fallback():
 
 
 def test_all_providers_failing_returns_503():
-    mock_provider = router_module._provider_registry["mock"]
+    mock_provider = get_provider_registry().require("mock")
     mock_provider.queue_failure("mock-smart-chat", "server_error", count=3)
     mock_provider.queue_failure("mock-backup-chat", "server_error", count=1)  # fallbacks get one attempt
 
@@ -81,7 +81,7 @@ def test_all_providers_failing_returns_503():
 
 def test_non_retryable_error_does_not_trigger_fallback(monkeypatch):
     calls = _track_calls(monkeypatch)
-    mock_provider = router_module._provider_registry["mock"]
+    mock_provider = get_provider_registry().require("mock")
     mock_provider.queue_failure("mock-smart-chat", "auth_error", count=1)
 
     response = client.post("/v1/chat/completions", json=SMART_CHAT_BODY, headers=ALPHA_HEADERS)

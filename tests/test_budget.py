@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from app.budget.manager import _daily_key, _monthly_key, estimate_cost
 from app.main import app
 from app.models.chat import Usage
-from app.routing import router as router_module
+from app.providers.registry import get_provider_registry
 
 client = TestClient(app)
 
@@ -56,14 +56,14 @@ async def test_monthly_budget_exceeded_blocks_request(fake_redis):
 
 @pytest.mark.asyncio
 async def test_budget_exceeded_does_not_call_provider(fake_redis, monkeypatch):
-    mock_provider = router_module._provider_registry["mock"]
+    mock_provider = get_provider_registry().require("mock")
     call_count = 0
     original_chat_completion = mock_provider.chat_completion
 
-    async def counting_chat_completion(request, model):
+    async def counting_chat_completion(request, target):
         nonlocal call_count
         call_count += 1
-        return await original_chat_completion(request, model)
+        return await original_chat_completion(request, target)
 
     monkeypatch.setattr(mock_provider, "chat_completion", counting_chat_completion)
 
@@ -75,9 +75,9 @@ async def test_budget_exceeded_does_not_call_provider(fake_redis, monkeypatch):
 
 
 def test_failed_provider_call_does_not_record_spend(monkeypatch):
-    mock_provider = router_module._provider_registry["mock"]
+    mock_provider = get_provider_registry().require("mock")
 
-    async def failing_chat_completion(request, model):
+    async def failing_chat_completion(request, target):
         raise RuntimeError("simulated provider failure")
 
     monkeypatch.setattr(mock_provider, "chat_completion", failing_chat_completion)
