@@ -85,10 +85,6 @@ def get_team_by_id(team_id: str) -> TeamConfig | None:
     return config.teams.get(team_id)
 
 
-def is_model_allowed(team: TeamConfig, model_alias: str) -> bool:
-    return model_alias in team.allowed_models
-
-
 def get_pricing(model_alias: str) -> PricingConfig:
     config = get_config()
     pricing = config.pricing.get(model_alias)

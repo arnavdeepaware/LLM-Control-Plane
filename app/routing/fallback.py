@@ -1,5 +1,3 @@
-from dataclasses import dataclass
-
 from fastapi import HTTPException
 
 from app.models.chat import ChatCompletionRequest, ChatCompletionResponse

@@ -92,7 +92,3 @@ def get_state(provider: str, model: str) -> CircuitState:
         now = time.time()
         circuit.failures = [t for t in circuit.failures if now - t <= window]
     return circuit
-
-
-def get_all_states() -> dict[str, CircuitState]:
-    return dict(_circuits)

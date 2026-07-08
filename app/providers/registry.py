@@ -23,12 +23,6 @@ class ProviderRegistry:
             raise ProviderUnavailableError(f"Provider '{provider_name}' is not registered", provider=provider_name)
         return provider
 
-    def is_registered(self, provider_name: str) -> bool:
-        return provider_name in self._providers
-
-    def all(self) -> list[BaseProvider]:
-        return list(self._providers.values())
-
     def validate_target(self, target: ProviderTarget) -> None:
         provider = self.require(target.provider)
         if not provider.is_enabled():
