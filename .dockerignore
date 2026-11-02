@@ -1,0 +1,8 @@
+.git
+.venv
+console/node_modules
+console/dist
+console/coverage
+console/playwright-report
+**/__pycache__
+.pytest_cache

@@ -11,3 +11,8 @@ build/
 .mypy_cache/
 CLAUDE.md
 AGENTS.md
+node_modules/
+test-results/
+playwright-report/
+coverage/
+*.tsbuildinfo

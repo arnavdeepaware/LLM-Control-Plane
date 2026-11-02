@@ -5,13 +5,26 @@ services:
       - "8000:8000"
     environment:
       - REDIS_URL=redis://redis:6379/0
+      - ENABLE_DEV_CONTROLS=${ENABLE_DEV_CONTROLS:-true}
+      - DEV_CONTROL_TOKEN=${DEV_CONTROL_TOKEN:-local-dev-token}
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
 
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   prometheus:
     image: prom/prometheus:v2.53.0
@@ -20,7 +33,13 @@ services:
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     depends_on:
-      - gateway
+      gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
 
   grafana:
     image: grafana/grafana:11.1.0
@@ -30,8 +49,35 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:8080/grafana/}
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning
       - ./grafana/dashboards:/var/lib/grafana/dashboards
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/grafana/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+
+  console:
+    build:
+      context: ./console
+      args:
+        VITE_SHOW_SAMPLE_KEYS: ${VITE_SHOW_SAMPLE_KEYS:-true}
+    ports:
+      - "8080:80"
+    depends_on:
+      gateway:
+        condition: service_healthy
+      grafana:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/console-health"]
+      interval: 10s
+      timeout: 3s
+      retries: 6

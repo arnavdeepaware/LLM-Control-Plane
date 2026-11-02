@@ -4,6 +4,8 @@ Production-style API gateway for centralizing LLM access across teams, models, b
 
 This project is an AI infrastructure backend, not a chatbot UI. It demonstrates how a company could put a control plane in front of LLM providers so application teams do not need to solve authentication, routing, reliability, and monitoring separately in every service.
 
+The repository now includes a React developer console for exercising the gateway. After `docker compose up --build`, open `http://localhost:8080`. See [docs/ui-runbook.md](docs/ui-runbook.md) for local test controls, capability boundaries, and the Grafana view.
+
 ## Overview
 
 LLM Gateway exposes an OpenAI-style chat completion endpoint:
@@ -133,8 +135,9 @@ Services:
 | Service | URL |
 | --- | --- |
 | Gateway | `http://localhost:8000` |
+| Developer console | `http://localhost:8080` |
 | Prometheus | `http://localhost:9090` |
-| Grafana | `http://localhost:3000` |
+| Grafana | `http://localhost:8080/grafana/` (also `http://localhost:3000/grafana/`) |
 | Redis | `localhost:6379` |
 
 Grafana is provisioned with anonymous viewer access and the admin password `admin` for local demo use.

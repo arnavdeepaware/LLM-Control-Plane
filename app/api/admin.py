@@ -9,6 +9,20 @@ router = APIRouter(prefix="/admin")
 providers_router = APIRouter()
 
 
+@router.get("/teams")
+async def list_teams():
+    return {"teams": [
+        {
+            "team_id": team.team_id,
+            "name": team.name,
+            "allowed_models": team.allowed_models,
+            "rate_limits": team.rate_limits.model_dump(),
+            "budgets": team.budgets.model_dump(),
+        }
+        for team in get_config().teams.values()
+    ]}
+
+
 @router.get("/teams/{team_id}/usage")
 async def get_team_usage(team_id: str):
     team = get_team_by_id(team_id)

@@ -5,21 +5,36 @@
   "schemaVersion": 39,
   "refresh": "5s",
   "time": { "from": "now-15m", "to": "now" },
+  "templating": { "list": [
+    { "name": "team", "type": "query", "datasource": "Prometheus", "query": "label_values(llm_gateway_requests_total, team_id)", "includeAll": true, "allValue": ".*", "current": { "text": "All", "value": ".*" }, "refresh": 1 },
+    { "name": "model", "type": "query", "datasource": "Prometheus", "query": "label_values(llm_gateway_requests_total, model_requested)", "includeAll": true, "allValue": ".*", "current": { "text": "All", "value": ".*" }, "refresh": 1 },
+    { "name": "provider", "type": "query", "datasource": "Prometheus", "query": "label_values(llm_gateway_provider_errors_total, provider)", "includeAll": true, "allValue": ".*", "current": { "text": "All", "value": ".*" }, "refresh": 1 },
+    { "name": "status", "type": "query", "datasource": "Prometheus", "query": "label_values(llm_gateway_requests_total, status_code)", "includeAll": true, "allValue": ".*", "current": { "text": "All", "value": ".*" }, "refresh": 1 },
+    { "name": "interval", "type": "interval", "query": "1m,5m,15m", "current": { "text": "5m", "value": "5m" } }
+  ] },
   "panels": [
+    { "id": 90, "title": "Readiness", "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 }, "targets": [{ "expr": "llm_gateway_ready" }], "fieldConfig": { "defaults": { "mappings": [{ "type": "value", "options": { "0": { "text": "Unavailable", "color": "red" }, "1": { "text": "Ready", "color": "green" } } }] } } },
+    { "id": 91, "title": "Requests/sec", "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 }, "targets": [{ "expr": "sum(rate(llm_gateway_requests_total{team_id=~\"$team\",model_requested=~\"$model\",status_code=~\"$status\"}[$interval]))" }] },
+    { "id": 92, "title": "Error rate", "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 }, "targets": [{ "expr": "sum(rate(llm_gateway_requests_total{status_code=~\"5..\"}[$interval]))" }] },
+    { "id": 93, "title": "P95 latency", "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 }, "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(llm_gateway_request_latency_seconds_bucket[$interval])) by (le))" }], "fieldConfig": { "defaults": { "unit": "s" } } },
+    { "id": 94, "title": "Cost USD/min", "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 }, "targets": [{ "expr": "sum(rate(llm_gateway_cost_usd_total[$interval])) * 60" }], "fieldConfig": { "defaults": { "unit": "currencyUSD" } } },
+    { "id": 95, "title": "Open circuits", "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 }, "targets": [{ "expr": "count(llm_gateway_circuit_state == 1) or vector(0)" }] },
+    { "id": 100, "title": "Traffic", "type": "row", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 4 } },
     {
       "id": 1,
       "title": "Request Rate",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
       "targets": [
-        { "expr": "sum(rate(llm_gateway_requests_total[1m])) by (status_code)", "legendFormat": "{{status_code}}" }
+        { "expr": "sum(rate(llm_gateway_requests_total{team_id=~\"$team\",model_requested=~\"$model\",status_code=~\"$status\"}[$interval])) by (status_code)", "legendFormat": "{{status_code}}" }
       ]
     },
     {
       "id": 2,
       "title": "Latency (p50 / p95 / p99)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+      "fieldConfig": { "defaults": { "unit": "s", "noValue": "No traffic yet" } },
       "targets": [
         { "expr": "histogram_quantile(0.50, sum(rate(llm_gateway_request_latency_seconds_bucket[5m])) by (le))", "legendFormat": "p50" },
         { "expr": "histogram_quantile(0.95, sum(rate(llm_gateway_request_latency_seconds_bucket[5m])) by (le))", "legendFormat": "p95" },
@@ -30,16 +45,17 @@
       "id": 3,
       "title": "Provider Errors",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
       "targets": [
-        { "expr": "sum(rate(llm_gateway_provider_errors_total[1m])) by (error_type)", "legendFormat": "{{error_type}}" }
+        { "expr": "sum(rate(llm_gateway_provider_errors_total{provider=~\"$provider\",model_requested=~\"$model\"}[$interval])) by (error_type)", "legendFormat": "{{error_type}}" }
       ]
     },
+    { "id": 101, "title": "Reliability", "type": "row", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 } },
     {
       "id": 4,
       "title": "Fallbacks & Retries",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
       "targets": [
         { "expr": "sum(rate(llm_gateway_fallbacks_total[1m]))", "legendFormat": "fallbacks" },
         { "expr": "sum(rate(llm_gateway_retries_total[1m]))", "legendFormat": "retries" }
@@ -49,17 +65,18 @@
       "id": 5,
       "title": "Rate-Limited & Budget-Blocked",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 23 },
       "targets": [
         { "expr": "sum(rate(llm_gateway_rate_limited_total[1m])) by (team_id)", "legendFormat": "rate_limited:{{team_id}}" },
         { "expr": "sum(rate(llm_gateway_budget_blocked_total[1m])) by (team_id)", "legendFormat": "budget_blocked:{{team_id}}" }
       ]
     },
+    { "id": 102, "title": "Governance", "type": "row", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 } },
     {
       "id": 6,
       "title": "Token Usage",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 23 },
       "targets": [
         { "expr": "sum(rate(llm_gateway_tokens_total[1m])) by (token_type)", "legendFormat": "{{token_type}}" }
       ]
@@ -68,18 +85,21 @@
       "id": 7,
       "title": "Estimated Cost (USD/min)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "noValue": "No spend yet" } },
       "targets": [
         { "expr": "sum(rate(llm_gateway_cost_usd_total[1m])) by (team_id)", "legendFormat": "{{team_id}}" }
       ]
     },
+    { "id": 103, "title": "Cost and circuits", "type": "row", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 31 } },
     {
       "id": 8,
       "title": "Circuit Breaker State",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+      "fieldConfig": { "defaults": { "mappings": [{ "type": "value", "options": { "0": { "text": "closed", "color": "green" }, "1": { "text": "open", "color": "red" }, "2": { "text": "half-open", "color": "yellow" } } }], "noValue": "No circuit activity yet" } },
       "targets": [
-        { "expr": "llm_gateway_circuit_state", "legendFormat": "{{provider}}/{{model}}" }
+        { "expr": "llm_gateway_circuit_state{provider=~\"$provider\"}", "legendFormat": "{{provider}}/{{model}}", "instant": true }
       ]
     }
   ]

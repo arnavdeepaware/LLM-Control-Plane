@@ -32,6 +32,12 @@ class MockProvider(BaseProvider):
             raise ValueError(f"Unknown failure mode: '{mode}' (expected one of {list(_FAILURE_MODES)})")
         self._fail_queue.setdefault(model, []).extend([mode] * count)
 
+    def queued_failures(self) -> dict[str, list[str]]:
+        return {model: list(modes) for model, modes in self._fail_queue.items() if modes}
+
+    def clear_failures(self) -> None:
+        self._fail_queue.clear()
+
     async def chat_completion(
         self, request: ChatCompletionRequest, target: ProviderTarget
     ) -> ChatCompletionResponse:
