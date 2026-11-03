@@ -34,6 +34,8 @@ This keeps application code simple while making gateway behavior testable and pr
 - Provider abstraction before real adapters: keeps routing and resilience clean before provider-specific complexity arrives.
 - Prometheus metrics before tracing: gives immediate operational visibility while keeping the implementation scope reasonable.
 - No streaming support: avoids complicating retries, fallbacks, and response accounting in the portfolio phase.
+- Separate data-plane and control-plane authentication: team keys authorize model traffic, while an expiring HttpOnly admin session protects global console and Grafana data. This avoids giving application credentials operational visibility or mutation rights.
+- Environment-backed static keys: keeps the public demo deterministic and removes usable credentials from routing configuration, while deliberately deferring a database-backed key lifecycle and SSO.
 
 ## Scaling Discussion
 

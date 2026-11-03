@@ -14,7 +14,6 @@ circuit_breaker:
 teams:
   team_alpha:
     name: "Team Alpha"
-    api_key: "alpha-secret-key"
     allowed_models:
       - smart-chat
       - cheap-chat
@@ -40,7 +39,6 @@ teams:
 
   team_beta:
     name: "Team Beta"
-    api_key: "beta-secret-key"
     allowed_models:
       - cheap-chat
     model_routes:

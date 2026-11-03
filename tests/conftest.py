@@ -8,8 +8,13 @@ from app.routing import circuit_breaker
 
 
 @pytest.fixture(autouse=True)
-def fake_redis():
+def fake_redis(monkeypatch):
     """Swap the Redis singleton for a fresh in-memory fake before every test."""
+    monkeypatch.setenv("TEAM_API_KEYS_JSON", '{"team_alpha":"alpha-secret-key","team_beta":"beta-secret-key"}')
+    monkeypatch.setenv("ADMIN_CONTROL_TOKEN", "local-admin-token")
+    monkeypatch.setenv("ADMIN_SESSION_SECRET", "local-session-secret-change-me")
+    monkeypatch.setenv("ADMIN_COOKIE_SECURE", "false")
+    monkeypatch.delenv("PUBLIC_DEMO", raising=False)
     reset_config()
     reset_provider_registry()
     circuit_breaker.reset_circuits()

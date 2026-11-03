@@ -1,0 +1,25 @@
+services:
+  gateway:
+    ports: !reset []
+    environment:
+      TEAM_API_KEYS_JSON: ${TEAM_API_KEYS_JSON:?Set non-default public team API keys}
+      ADMIN_CONTROL_TOKEN: ${ADMIN_CONTROL_TOKEN:?Set a non-default admin access code}
+      ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?Set a strong admin session signing secret}
+      ADMIN_COOKIE_SECURE: "true"
+      PUBLIC_DEMO: "true"
+      ENABLE_DEV_CONTROLS: "false"
+      DEV_CONTROL_TOKEN: ""
+
+  redis:
+    ports: !reset []
+
+  prometheus:
+    ports: !reset []
+
+  grafana:
+    ports: !reset []
+
+  console:
+    build:
+      args:
+        VITE_SHOW_SAMPLE_KEYS: "false"

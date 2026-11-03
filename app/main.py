@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from app.config.loader import get_config
 
 from app.api.admin import providers_router, router as admin_router
+from app.api.admin_session import router as admin_session_router
 from app.api.chat import router as chat_router
 from app.api.errors import register_exception_handlers
 from app.api.health import router as health_router
@@ -44,6 +45,7 @@ async def capabilities():
 
 app.include_router(health_router)
 app.include_router(chat_router)
+app.include_router(admin_session_router)
 app.include_router(admin_router)
 app.include_router(providers_router)
 app.include_router(metrics_router)

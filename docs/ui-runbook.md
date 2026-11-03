@@ -1,12 +1,14 @@
 # V1 developer console
 
-Start Docker, then run `docker compose up --build`. The console is at `http://localhost:8080`; the gateway is at `:8000`, Prometheus at `:9090`, and Grafana at `:3000/grafana/`. The console serves the gateway and Grafana through one origin. The local Test Lab token defaults to `local-dev-token`; set `DEV_CONTROL_TOKEN` in your shell or `.env` to change it. Use `docker compose config` and `pytest -q` for baseline checks. From `console/`, run `npm ci`, `npm run build`, and `npm test` for frontend checks. With the stack running, run `npm run test:e2e`.
+Start Docker, then run `docker compose up --build`. The console is at `http://localhost:8080`; the gateway is at `:8000`, Prometheus at `:9090`, and Grafana at `:3000/grafana/`. Enter the local admin access code `local-admin-token` before the console loads protected data. The local Test Lab token defaults to `local-dev-token`; set the environment values in `.env` to change either. See [authentication.md](authentication.md) for team keys, public deployment, rotation, and session behavior.
 
 ## Capability matrix
 
 | Feature | Current state | UI behavior |
 | --- | --- | --- |
 | Mock chat | Available | Playground sends real gateway requests and labels responses simulated |
+| Team authentication | Available | `/v1/me` verifies the key and the UI displays the resolved identity before chat |
+| Admin authentication | Available | Signed HttpOnly session protects console metadata and proxied Grafana |
 | Team usage and provider circuits | Available | Overview, Teams, and Providers poll live endpoints |
 | Failure injection and reset | Local development only | Test Lab appears when enabled and requires a separate token |
 | Prometheus and Grafana | Available | Embedded dashboard and full Grafana link |
@@ -19,7 +21,7 @@ The Test Lab presets reset relevant state, send gateway requests, and log expect
 
 ## Public demo profile
 
-Set `ENABLE_DEV_CONTROLS=false` and `VITE_SHOW_SAMPLE_KEYS=false` before building. Change all sample team keys, protect admin endpoints, and use managed secrets before exposing the stack publicly. When development controls are disabled, `/dev/*` is not registered. The local Compose defaults are deliberately for workstation use.
+Use `docker-compose.public.yml` with explicit `TEAM_API_KEYS_JSON`, `ADMIN_CONTROL_TOKEN`, and `ADMIN_SESSION_SECRET`. The overlay disables development controls and sample-key shortcuts, enables secure cookies, and exposes only the console port. The local Compose defaults are deliberately for workstation use.
 
 ## Architecture
 
@@ -32,7 +34,7 @@ The console polls readiness every five seconds and runtime data every ten second
 
 ## Scenario guide
 
-1. Open Test Lab and enter the development token.
+1. Enter the admin access code, then open Test Lab and enter the development token.
 2. Reset all demo state.
 3. Queue a transient retry or primary fallback, then submit `smart-chat` from Team Alpha in Playground.
 4. Inspect `model_served`, `fallback_used`, request ID, tokens, latency, and estimated cost.

@@ -15,6 +15,7 @@ def test_readiness_and_capabilities(fake_redis):
 
 
 def test_team_discovery_excludes_secrets():
+    client.post('/admin/session', headers={'Authorization': 'Bearer local-admin-token'})
     response = client.get('/admin/teams')
     assert response.status_code == 200
     assert len(response.json()['teams']) == 2

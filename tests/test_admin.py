@@ -11,10 +11,15 @@ CHEAP_CHAT_BODY = {
 }
 
 
+def admin_get(path: str):
+    client.post("/admin/session", headers={"Authorization": "Bearer local-admin-token"})
+    return client.get(path)
+
+
 def test_usage_endpoint_returns_200_with_expected_fields():
     client.post("/v1/chat/completions", json=CHEAP_CHAT_BODY, headers=ALPHA_HEADERS)
 
-    response = client.get("/admin/teams/team_alpha/usage")
+    response = admin_get("/admin/teams/team_alpha/usage")
     assert response.status_code == 200
     body = response.json()
     assert body["team_id"] == "team_alpha"
@@ -25,7 +30,7 @@ def test_usage_endpoint_returns_200_with_expected_fields():
 
 
 def test_limits_endpoint_matches_config():
-    response = client.get("/admin/teams/team_beta/limits")
+    response = admin_get("/admin/teams/team_beta/limits")
     assert response.status_code == 200
     body = response.json()
     assert body["team_id"] == "team_beta"
@@ -36,10 +41,10 @@ def test_limits_endpoint_matches_config():
 
 
 def test_unknown_team_usage_returns_404():
-    response = client.get("/admin/teams/team_nonexistent/usage")
+    response = admin_get("/admin/teams/team_nonexistent/usage")
     assert response.status_code == 404
 
 
 def test_unknown_team_limits_returns_404():
-    response = client.get("/admin/teams/team_nonexistent/limits")
+    response = admin_get("/admin/teams/team_nonexistent/limits")
     assert response.status_code == 404

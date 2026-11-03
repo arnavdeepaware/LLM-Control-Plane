@@ -50,7 +50,6 @@ class CircuitBreakerConfig(BaseModel):
 class TeamConfig(BaseModel):
     team_id: str = ""
     name: str
-    api_key: str
     allowed_models: list[str]
     model_routes: dict[str, ModelRoute]
     rate_limits: RateLimitConfig = Field(default_factory=RateLimitConfig)

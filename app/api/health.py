@@ -2,6 +2,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from app.config.loader import get_config
+from app.auth.admin_session import get_admin_settings
 from app.redis_client import get_redis
 from app.observability.metrics import READINESS
 
@@ -17,6 +18,7 @@ async def health():
 async def ready():
     try:
         get_config()
+        get_admin_settings()
     except Exception:
         READINESS.set(0)
         return JSONResponse(status_code=503, content={"status": "unavailable", "dependencies": {"redis": "unknown"}, "error": "configuration_unavailable"})

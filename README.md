@@ -164,13 +164,13 @@ Expected response:
 
 ## Configuration
 
-The default config lives in [app/config/teams.yaml](app/config/teams.yaml).
+The default routing config lives in [app/config/teams.yaml](app/config/teams.yaml). Team credentials are injected separately through `TEAM_API_KEYS_JSON`; they are not stored in YAML.
 
 It defines:
 
 - model pricing for estimated cost tracking
 - circuit-breaker thresholds
-- teams and API keys
+- teams and environment-backed API-key mappings
 - allowed model aliases
 - primary provider targets and fallback targets
 - per-team rate limits
@@ -192,6 +192,8 @@ team_alpha:
 ```
 
 Provider targets use the internal `provider:model` form, for example `mock:mock-smart-chat`.
+
+The developer console also requires a separate `ADMIN_CONTROL_TOKEN`, exchanged for a signed HttpOnly session. See [docs/authentication.md](docs/authentication.md) for the local credentials, public-demo overlay, and remaining security limitations.
 
 ## API Example
 

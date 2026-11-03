@@ -13,6 +13,17 @@ from app.routing.router import resolve_model_route
 router = APIRouter()
 
 
+@router.get("/v1/me")
+async def current_team(team: TeamConfig = Depends(get_current_team)):
+    return {
+        "team_id": team.team_id,
+        "name": team.name,
+        "allowed_models": team.allowed_models,
+        "rate_limits": team.rate_limits.model_dump(),
+        "budgets": team.budgets.model_dump(),
+    }
+
+
 @router.post("/v1/chat/completions", response_model=ChatCompletionResponse)
 async def chat_completion(
     request: ChatCompletionRequest,

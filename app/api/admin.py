@@ -1,12 +1,14 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from app.auth.admin_session import require_admin_session
 from app.budget.manager import get_spend
 from app.config.loader import get_config, get_team_by_id
+from app.observability.metrics import REGISTRY
 from app.rate_limit.limiter import get_tokens_this_minute
 from app.routing import circuit_breaker
 
-router = APIRouter(prefix="/admin")
-providers_router = APIRouter()
+router = APIRouter(prefix="/admin", dependencies=[Depends(require_admin_session)])
+providers_router = APIRouter(dependencies=[Depends(require_admin_session)])
 
 
 @router.get("/teams")
@@ -21,6 +23,28 @@ async def list_teams():
         }
         for team in get_config().teams.values()
     ]}
+
+
+@router.get("/auth/summary")
+async def get_auth_summary():
+    success = sum(
+        REGISTRY.get_sample_value(
+            "llm_gateway_auth_attempts_total", {"result": "success", "team_id": team_id}
+        ) or 0
+        for team_id in get_config().teams
+    )
+    failures = sum(
+        REGISTRY.get_sample_value(
+            "llm_gateway_auth_attempts_total", {"result": result, "team_id": "unknown"}
+        ) or 0
+        for result in ("missing", "malformed", "invalid")
+    )
+    total = success + failures
+    return {
+        "success_total": int(success),
+        "failure_total": int(failures),
+        "success_rate": round(success / total * 100, 2) if total else None,
+    }
 
 
 @router.get("/teams/{team_id}/usage")

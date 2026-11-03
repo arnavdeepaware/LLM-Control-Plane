@@ -18,12 +18,14 @@ Chat requests use a Bearer API key:
 Authorization: Bearer alpha-secret-key
 ```
 
-Default local teams:
+The local Compose profile injects these deterministic demo credentials through `TEAM_API_KEYS_JSON`:
 
 | Team | API key | Allowed models |
 | --- | --- | --- |
 | `team_alpha` | `alpha-secret-key` | `smart-chat`, `cheap-chat` |
 | `team_beta` | `beta-secret-key` | `cheap-chat` |
+
+These values are not stored in team YAML and must be replaced for the public profile. Administrative endpoints use the separate signed session described below.
 
 ## Error Envelope
 
@@ -70,6 +72,17 @@ Expected response:
   "status": "ok"
 }
 ```
+
+## `GET /v1/me`
+
+Verifies a team Bearer key without consuming rate limits, checking budgets, or calling a provider. It returns the resolved team name, allowed aliases, limits, and budgets; credential and routing details are omitted.
+
+```bash
+curl -s http://localhost:8000/v1/me \
+  -H "Authorization: Bearer alpha-secret-key"
+```
+
+Missing, malformed, and invalid credentials return `401` with `WWW-Authenticate: Bearer`.
 
 ## `POST /v1/chat/completions`
 
@@ -188,12 +201,23 @@ Expected status: `402`
 }
 ```
 
+## Admin session
+
+Exchange the separate admin access code for an expiring HttpOnly cookie. The code is not a team key.
+
+```bash
+curl -s -c /tmp/llm-admin-cookie -X POST http://localhost:8000/admin/session \
+  -H "Authorization: Bearer local-admin-token"
+```
+
+Pass `-b /tmp/llm-admin-cookie` when calling `/admin/*` or `/providers/health`. `GET /admin/session` reports session status, and `DELETE /admin/session` logs out. Proxied Grafana uses the same browser cookie.
+
 ## `GET /admin/teams/{team_id}/usage`
 
 Returns current rate-limit visibility, spend, and configured budgets.
 
 ```bash
-curl -s http://localhost:8000/admin/teams/team_alpha/usage
+curl -s -b /tmp/llm-admin-cookie http://localhost:8000/admin/teams/team_alpha/usage
 ```
 
 Expected response shape:

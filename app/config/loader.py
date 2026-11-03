@@ -1,3 +1,5 @@
+import hmac
+import json
 import os
 from pathlib import Path
 
@@ -8,6 +10,7 @@ from app.providers.errors import ProviderError
 from app.providers.registry import get_provider_registry
 
 _config: GatewayConfig | None = None
+_team_api_keys: dict[str, str] | None = None
 
 
 class ConfigValidationError(ValueError):
@@ -15,7 +18,7 @@ class ConfigValidationError(ValueError):
 
 
 def load_config(path: Path | None = None) -> GatewayConfig:
-    global _config
+    global _config, _team_api_keys
     if path is None:
         path = Path(__file__).parent / "teams.yaml"
     with open(path) as f:
@@ -24,8 +27,39 @@ def load_config(path: Path | None = None) -> GatewayConfig:
     for team_id, team in config.teams.items():
         team.team_id = team_id
     validate_config(config)
+    _team_api_keys = _load_team_api_keys(config)
     _config = config
     return _config
+
+
+def _load_team_api_keys(config: GatewayConfig) -> dict[str, str]:
+    raw = os.environ.get("TEAM_API_KEYS_JSON")
+    if not raw:
+        raise ConfigValidationError("TEAM_API_KEYS_JSON is required")
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ConfigValidationError("TEAM_API_KEYS_JSON must be valid JSON") from exc
+    if not isinstance(parsed, dict) or any(not isinstance(key, str) or not isinstance(value, str) for key, value in parsed.items()):
+        raise ConfigValidationError("TEAM_API_KEYS_JSON must be a string-to-string object")
+
+    configured = set(config.teams)
+    supplied = set(parsed)
+    missing = sorted(configured - supplied)
+    unknown = sorted(supplied - configured)
+    if missing:
+        raise ConfigValidationError(f"Missing API key for team(s): {', '.join(missing)}")
+    if unknown:
+        raise ConfigValidationError(f"API keys supplied for unknown team(s): {', '.join(unknown)}")
+    if any(not value.strip() for value in parsed.values()):
+        raise ConfigValidationError("Team API keys must not be empty")
+    if len(set(parsed.values())) != len(parsed):
+        raise ConfigValidationError("Team API keys must be unique")
+    if os.environ.get("PUBLIC_DEMO", "false").lower() == "true":
+        local_defaults = {"alpha-secret-key", "beta-secret-key"}
+        if any(value in local_defaults or len(value) < 16 for value in parsed.values()):
+            raise ConfigValidationError("Public demo requires non-default team API keys of at least 16 characters")
+    return parsed
 
 
 def validate_config(config: GatewayConfig) -> None:
@@ -62,8 +96,9 @@ def validate_config(config: GatewayConfig) -> None:
 
 def reset_config() -> None:
     """Clear the cached config so the next get_config() call reloads from disk."""
-    global _config
+    global _config, _team_api_keys
     _config = None
+    _team_api_keys = None
 
 
 def get_config() -> GatewayConfig:
@@ -74,10 +109,12 @@ def get_config() -> GatewayConfig:
 
 def get_team_by_api_key(api_key: str) -> TeamConfig | None:
     config = get_config()
-    for team in config.teams.values():
-        if team.api_key == api_key:
-            return team
-    return None
+    keys = _team_api_keys or _load_team_api_keys(config)
+    matched_team_id: str | None = None
+    for team_id, configured_key in keys.items():
+        if hmac.compare_digest(api_key, configured_key):
+            matched_team_id = team_id
+    return config.teams.get(matched_team_id) if matched_team_id else None
 
 
 def get_team_by_id(team_id: str) -> TeamConfig | None:

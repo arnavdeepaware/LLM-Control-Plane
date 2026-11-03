@@ -4,6 +4,13 @@ REGISTRY = CollectorRegistry()
 
 READINESS = Gauge("llm_gateway_ready", "Gateway readiness (0=unavailable, 1=ready)", registry=REGISTRY)
 
+AUTH_ATTEMPTS = Counter(
+    "llm_gateway_auth_attempts_total",
+    "Team authentication attempts by safe result category",
+    ["result", "team_id"],
+    registry=REGISTRY,
+)
+
 REQUEST_COUNT = Counter(
     "llm_gateway_requests_total",
     "Total requests to the gateway",

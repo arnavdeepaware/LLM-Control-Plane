@@ -53,6 +53,20 @@ sequenceDiagram
     Gateway-->>Client: ChatCompletionResponse
 ```
 
+## Authentication boundaries
+
+```mermaid
+flowchart LR
+    Reviewer -->|Admin access code once| Session[Signed HttpOnly admin session]
+    Session --> Console[Teams, usage, providers]
+    Session --> Grafana[Read-only Grafana]
+    Application -->|Team Bearer key| Identity[/v1/me]
+    Application -->|Team Bearer key| Chat[/v1/chat/completions]
+    Developer -->|Local dev token| TestLab[/dev controls]
+```
+
+Data-plane team keys identify the calling team and constrain chat behavior. The separate control-plane session protects global operational metadata. Development controls remain a third, local-only credential so neither a team key nor a read-only admin session can mutate demo state.
+
 ## Provider Routing
 
 ```mermaid

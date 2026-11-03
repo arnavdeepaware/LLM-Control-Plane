@@ -19,6 +19,11 @@ CHEAP_CHAT_BODY = {
 EXPECTED_COST = (2 / 1000 * 0.001) + (20 / 1000 * 0.002)
 
 
+def admin_get(path: str):
+    client.post("/admin/session", headers={"Authorization": "Bearer local-admin-token"})
+    return client.get(path)
+
+
 def test_estimate_cost_is_deterministic():
     usage = Usage(input_tokens=2, output_tokens=20, total_tokens=22)
     assert estimate_cost(usage, "cheap-chat") == pytest.approx(EXPECTED_COST)
@@ -28,7 +33,7 @@ def test_spend_increments_after_successful_request(fake_redis):
     response = client.post("/v1/chat/completions", json=CHEAP_CHAT_BODY, headers=ALPHA_HEADERS)
     assert response.status_code == 200
 
-    daily_spend = client.get("/admin/teams/team_alpha/usage").json()["spend"]["daily_usd"]
+    daily_spend = admin_get("/admin/teams/team_alpha/usage").json()["spend"]["daily_usd"]
     assert daily_spend == pytest.approx(EXPECTED_COST)
 
 
@@ -85,5 +90,5 @@ def test_failed_provider_call_does_not_record_spend(monkeypatch):
     with pytest.raises(RuntimeError):
         client.post("/v1/chat/completions", json=CHEAP_CHAT_BODY, headers=ALPHA_HEADERS)
 
-    daily_spend = client.get("/admin/teams/team_alpha/usage").json()["spend"]["daily_usd"]
+    daily_spend = admin_get("/admin/teams/team_alpha/usage").json()["spend"]["daily_usd"]
     assert daily_spend == 0.0

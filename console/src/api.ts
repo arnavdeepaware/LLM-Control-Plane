@@ -1,4 +1,7 @@
 export type Team = { team_id: string; name: string; allowed_models: string[]; rate_limits: { requests_per_minute: number; tokens_per_minute: number }; budgets: { daily_usd: number; monthly_usd: number } }
+export type TeamIdentity = Team
+export type AdminSession = { authenticated: boolean; expires_at: number }
+export type AuthSummary = { success_total: number; failure_total: number; success_rate: number | null }
 export type Usage = { team_id: string; tokens_this_minute: number; spend: { daily_usd: number; monthly_usd: number }; budgets: Team['budgets']; rate_limits: Team['rate_limits'] }
 export type Provider = { provider: string; model: string; circuit_state: string; recent_failures: number; last_failure_at: number | null }
 export type Capabilities = { version: string; provider_mode: string; providers: string[]; pricing: Record<string, { input_price_per_1k: number; output_price_per_1k: number }>; dev_controls: boolean; streaming: boolean; real_providers: boolean; usage_history: boolean; config_mutation: boolean }
@@ -22,8 +25,13 @@ export const api = {
   ready: () => request<{ status: string; dependencies: { redis: string } }>('/ready'),
   capabilities: () => request<Capabilities>('/meta/capabilities'),
   teams: () => request<{ teams: Team[] }>('/admin/teams'),
+  authSummary: () => request<AuthSummary>('/admin/auth/summary'),
   usage: (id: string) => request<Usage>(`/admin/teams/${encodeURIComponent(id)}/usage`),
   providers: () => request<{ providers: Provider[] }>('/providers/health'),
+  me: (key: string) => request<TeamIdentity>('/v1/me', { headers: { Authorization: `Bearer ${key}` } }),
+  adminSession: () => request<AdminSession>('/admin/session'),
+  adminLogin: (token: string) => request<AdminSession>('/admin/session', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }),
+  adminLogout: () => request<{ authenticated: boolean }>('/admin/session', { method: 'DELETE' }),
   chat: async (key: string, model: string, messages: Message[]) => {
     const start = performance.now()
     let response: Response

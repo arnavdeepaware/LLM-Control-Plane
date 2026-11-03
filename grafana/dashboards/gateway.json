@@ -101,6 +101,43 @@
       "targets": [
         { "expr": "llm_gateway_circuit_state{provider=~\"$provider\"}", "legendFormat": "{{provider}}/{{model}}", "instant": true }
       ]
+    },
+    { "id": 104, "title": "Authentication", "type": "row", "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 41 } },
+    {
+      "id": 96,
+      "title": "Authentication success rate",
+      "description": "Successful team-key checks divided by all team authentication attempts. Provider authentication is not included.",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 42 },
+      "fieldConfig": { "defaults": { "unit": "percent", "noValue": "No authentication attempts yet" } },
+      "targets": [{ "expr": "100 * sum(rate(llm_gateway_auth_attempts_total{result=\"success\"}[$interval])) / clamp_min(sum(rate(llm_gateway_auth_attempts_total[$interval])), 0.000001)" }]
+    },
+    {
+      "id": 97,
+      "title": "401 rate",
+      "description": "Requests rejected because the team credential was missing, malformed, or invalid.",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 42 },
+      "fieldConfig": { "defaults": { "unit": "reqps", "noValue": "No unauthorized requests" } },
+      "targets": [{ "expr": "sum(rate(llm_gateway_requests_total{status_code=\"401\"}[$interval]))" }]
+    },
+    {
+      "id": 98,
+      "title": "403 rate",
+      "description": "Authenticated requests rejected by authorization, such as a model alias not allowed for the resolved team.",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 42 },
+      "fieldConfig": { "defaults": { "unit": "reqps", "noValue": "No forbidden requests" } },
+      "targets": [{ "expr": "sum(rate(llm_gateway_requests_total{status_code=\"403\"}[$interval]))" }]
+    },
+    {
+      "id": 9,
+      "title": "Authentication failures by category",
+      "description": "Safe, bounded failure categories. No submitted credentials, IP addresses, or request IDs are labels.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 46 },
+      "fieldConfig": { "defaults": { "unit": "reqps", "noValue": "No authentication failures" } },
+      "targets": [{ "expr": "sum(rate(llm_gateway_auth_attempts_total{result!=\"success\"}[$interval])) by (result)", "legendFormat": "{{result}}" }]
     }
   ]
 }

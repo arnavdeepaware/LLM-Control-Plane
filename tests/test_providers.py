@@ -94,7 +94,6 @@ def test_config_validation_rejects_unknown_provider(tmp_path):
             teams:
               team_alpha:
                 name: Team Alpha
-                api_key: alpha-secret-key
                 allowed_models:
                   - smart-chat
                 model_routes:
@@ -118,7 +117,6 @@ def test_config_validation_requires_pricing_for_routed_model(tmp_path):
             teams:
               team_alpha:
                 name: Team Alpha
-                api_key: alpha-secret-key
                 allowed_models:
                   - smart-chat
                 model_routes:
@@ -145,7 +143,6 @@ def test_config_validation_requires_routes_for_allowed_models(tmp_path):
             teams:
               team_alpha:
                 name: Team Alpha
-                api_key: alpha-secret-key
                 allowed_models:
                   - smart-chat
                 model_routes: {}
